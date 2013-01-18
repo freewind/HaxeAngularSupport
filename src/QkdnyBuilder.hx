@@ -39,6 +39,7 @@ class QkdnyBuilder {
             case EBlock(exprs):
             exprs.push(macro trace("world"));
             default:
+            trace("not a EBlock, change your code");
         }
     }
 
