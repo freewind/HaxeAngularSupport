@@ -1,8 +1,7 @@
 package ;
 
-import Qkdny;
-import QkdnyBuilder;
-import Scope;
+import freewind.Qkdny;
+import Scope1;
 
 class Main {
     public function new() {
@@ -10,7 +9,5 @@ class Main {
 
     public static function main() {
         trace("hello");
-        var x = {};
-        var scope = new Scope(x);
     }
 }

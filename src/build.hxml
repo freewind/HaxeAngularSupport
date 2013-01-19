@@ -1,3 +1,4 @@
 -cp .
+-lib tink_macros
 -main Main
 -js main.js
