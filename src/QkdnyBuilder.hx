@@ -8,7 +8,7 @@ class QkdnyBuilder {
 
     @:macro public static function build():Array<haxe.macro.Field> {
         var fields = Context.getBuildFields();
-        var ctor = getCtor();
+        var ctor = getCtor(fields);
         insertStmt(ctor);
 
         var funcExpr = macro function():String {
@@ -43,8 +43,7 @@ class QkdnyBuilder {
         }
     }
 
-    static function getCtor() {
-        var fields = Context.getBuildFields();
+    static function getCtor(fields: Array<Field>) {
         for (f in fields) {
             if (f.name == "new") {
                 switch(f.kind) {
