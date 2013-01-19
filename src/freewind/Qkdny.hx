@@ -137,18 +137,10 @@ class QkdnyBuilder {
             switch(expr.getIdent()) {
                 case Success(id):
                     if (id == 'this') {
-                        return {
-                            pos: Context.currentPos(),
-                            expr: target
-                        };
+                        return target.at();
                     }
                     if (!isLocalVar(ctx, id) && !isArgument(func, id) && isField(id)) {
-                        trace("### handle: " + id);
-                        trace("### ctx: " + ctx);
-                        return {
-                            pos:  Context.currentPos(),
-                            expr: EField({ pos:  Context.currentPos(), expr: target }, id)
-                        }
+                        return target.at().field(id);
                     }
                     return expr;
                 case Failure(f):
