@@ -45,8 +45,6 @@ class QkdnyBuilder {
             switch(f.kind) {
                 case FFun(func):
                     if (f.name != 'new' && !f.access.has(AStatic)) {
-                        // func.expr = func.expr.map(makeTransformer(targetObjExpr, func), scope(targetObjExpr));
-
                         newFunc(block, targetObjExpr, f.name, func);
                         toRemove.push(f);
                     }
@@ -76,13 +74,10 @@ class QkdnyBuilder {
               if(!f.access.has(AStatic)) {
                 names.push(f.name);
               }
-//            switch(f.kind) {
-//                case FVar(t, v): names.push(f.name);
-//                default:
-//            }
         }
         return names;
     }
+
     static function scope(target:Expr) {
         var ctx = [ { name : target.getIdent().sure(), type: macro : Dynamic, expr: null } ];
         for(f in staticFields) ctx.push({ name:f.name, type:null, expr:f.toExpr() });
@@ -117,13 +112,7 @@ class QkdnyBuilder {
         )
 
     static function newFunc(block:Array<Expr>, target:Expr, varName:String, func:Function){
-//        func.expr = func.expr.map(makeTransformer(target, func), scope(target));
-        func.expr = func.expr.map(function(expr:Expr, ctx:Array<VarDecl>):Expr {
-                             return expr;
-                         }, null);
-//         func.expr = haxe.macro.ExprTools.map(func.expr, function(expr:Expr):Expr {
-//                             return expr;
-//                         });
+        func.expr = func.expr.map(makeTransformer(target, func), scope(target));
         newField(block, target, varName, func.toExpr());
     }
 
@@ -136,7 +125,6 @@ class QkdnyBuilder {
 
     static function makeTransformer(target:Expr, func:Function)
         return function(expr:Expr, ctx:Array<VarDecl>):Expr {
-            if(true) return expr;
             return
                 switch(expr.getIdent()) {
                     case Success(id):
@@ -147,7 +135,6 @@ class QkdnyBuilder {
                                 target.field(id);
                             }
                             else {
-                                trace("------ ctx --------" + ctx);
                                 expr;
                             }
                     case Failure(f): expr;
@@ -171,6 +158,5 @@ class QkdnyBuilder {
 
         return [].toBlock().func(['scope'.toArg(macro : Dynamic)], false);
     }
-
 #end
 }
