@@ -1,7 +1,9 @@
 package ;
 
 import freewind.Qkdny;
-import Scope1;
+import xxx.Scope1;
+//import Scope2;
+//import xxx.Ctrl;
 
 class Main {
     public function new() {

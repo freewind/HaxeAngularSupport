@@ -1,193 +1,176 @@
 package freewind;
 
-import haxe.macro.Context;
 import haxe.macro.Expr;
-
 #if macro
-using tink.macro.tools.MacroTools;
+import haxe.macro.Context;
 import tink.macro.tools.ExprTools;
+
+using tink.macro.tools.MacroTools;
+using tink.core.types.Outcome;
+using Lambda;
 #end
 
 @:autoBuild(freewind.QkdnyBuilder.build()) interface Qkdny {
 }
 
-
 class QkdnyBuilder {
 
-    private static var fieldNames:Array<String>;
-    private static var ctor:Function;
+    private static var staticFields:Array<haxe.macro.Field>;
 
     @:macro public static function build():Array<haxe.macro.Field> {
         var fields = Context.getBuildFields();
+
         ctor = getCtor(fields);
-        fieldNames = getFieldVars(fields);
+        instanceFieldNames = getInstanceFieldNames(fields);
+
+        staticFields = [];
+        for (f in fields) {
+            if (f.access.has(AStatic)) staticFields.push(f);
+        }
+
         var block = getExprs(ctor);
 
         var blockOriBody = block.copy();
 
-        while (block.length > 0) {
-            block.shift();
-        }
+        block.splice(0, block.length);
 
-        var targetObjExpr = EConst(CIdent(getTargetObjName(ctor)));
+        var targetObjExpr = getTargetObjName(ctor).resolve();
 
-        var toRemove = new Array<Field>();
+        var toRemove = new Array<haxe.macro.Field>();
 
-        for (ex in transformBlock(targetObjExpr, blockOriBody, ctor)) {
+        for (ex in transformBlock(targetObjExpr, blockOriBody, ctor))
             block.push(ex);
-        }
-
 
         for (f in fields) {
             switch(f.kind) {
                 case FFun(func):
-                    if (f.name != 'new' && !checkAccess(f.access, AStatic)) {
+                    if (f.name != 'new' && !f.access.has(AStatic)) {
+                        // func.expr = func.expr.map(makeTransformer(targetObjExpr, func), scope(targetObjExpr));
+
                         newFunc(block, targetObjExpr, f.name, func);
                         toRemove.push(f);
                     }
                 case FVar(t, v):
-                    if (!checkAccess(f.access, APrivate) && !checkAccess(f.access, AStatic)) {
-                        newField(block, targetObjExpr, f.name, v == null ? null : v.expr);
-                    }
-                    if (!checkAccess(f.access, AStatic)) {
-                        toRemove.push(f);
-                    }
+                    if (!f.access.has(APrivate) && !f.access.has(AStatic))
+                        newField(block, targetObjExpr, f.name, v == null ? (macro null) : v);
+
+                if (!f.access.has(AStatic))
+                toRemove.push(f);
                 default:
             }
         }
 
-        for (f in toRemove) {
+        for (f in toRemove)
             fields.remove(f);
-        }
 
         return fields;
     }
 
     #if macro
-    
-    private static function checkAccess(accessArr:Array<Access>, test:Access) {
-        for (a in accessArr) {
-            if (a == test) return true;
-        }
-        return false;
-    }
+    static var instanceFieldNames:Array<String>;
+    static var ctor:Function;
 
-
-    private static function isArgument(func:Function, varName:String):Bool {
-        for (a in func.args) {
-            if (a.name == varName) return true;
-        }
-        return false;
-    }
-
-
-    private static function getFieldVars(fields:Array<haxe.macro.Field>) {
+    static function getInstanceFieldNames(fields:Array<haxe.macro.Field>):Array<String> {
         var names = new Array<String>();
         for (f in fields) {
-            switch(f.kind) {
-                case FVar(t, v): names.push(f.name);
-                default:
-            }
+              if(!f.access.has(AStatic)) {
+                names.push(f.name);
+              }
+//            switch(f.kind) {
+//                case FVar(t, v): names.push(f.name);
+//                default:
+//            }
         }
         return names;
     }
-
-    private static function transformBlock(target:ExprDef, block:Array<Expr>, ctor:Function):Array<Expr> {
-        return block.mapArray(makeTransformer(target, ctor), null);
+    static function scope(target:Expr) {
+        var ctx = [ { name : target.getIdent().sure(), type: macro : Dynamic, expr: null } ];
+        for(f in staticFields) ctx.push({ name:f.name, type:null, expr:f.toExpr() });
+//            switch(f.kind) {
+//                case FFun(func): {
+//                  var args = func.args.map(function(item) return item.type);
+//                  ctx.push({ name: f.name, type: TFunction(args, func.ret), expr: null });
+//                }
+//                case FVar(_,_): ctx.push({ name: f.name, type: macro:Dynamic, expr: null });
+//                default:
+//            }
+        return ctx;
     }
 
-    private static function getExprs(ctor:Function):Array<Expr> {
-        switch(ctor.expr.expr) {
-            case EBlock(exprs): return exprs;
-            default: return null;
-        }
-    }
 
-    private static function newField(block:Array<Expr>, target:ExprDef, varName:String, varValue:ExprDef) {
-        block.push(
-            {
-            pos: Context.currentPos(),
-            expr: EBinop(OpAssign, {
-            pos: Context.currentPos(),
-            expr: EField({ pos: Context.currentPos(), expr: target }, varName)
-            }, {
-            pos: Context.currentPos(),
-            expr: varValue == null ? EConst(CIdent('null')) : varValue
-            })
+    static function transformBlock(target:Expr, block:Array<Expr>, ctor:Function):Array<Expr>
+        return block.mapArray(makeTransformer(target, ctor), scope(target))
+
+    static function getExprs(ctor:Function):Array<Expr>
+        return
+            switch(ctor.expr.expr) {
+                case EBlock(exprs): exprs;
+                default: [ctor.expr];
             }
-        );
+
+    static function newField(block:Array<Expr>, target:Expr, varName:String, varValue:Expr)
+        block.push(
+            OpAssign.make(
+                target.field(varName),
+                varValue
+            )
+        )
+
+    static function newFunc(block:Array<Expr>, target:Expr, varName:String, func:Function){
+//        func.expr = func.expr.map(makeTransformer(target, func), scope(target));
+        func.expr = func.expr.map(function(expr:Expr, ctx:Array<VarDecl>):Expr {
+                             return expr;
+                         }, null);
+//         func.expr = haxe.macro.ExprTools.map(func.expr, function(expr:Expr):Expr {
+//                             return expr;
+//                         });
+        newField(block, target, varName, func.toExpr());
     }
 
-    private static function isLocalVar(ctx:Array<VarDecl>, varName:String):Bool {
-        for (v in ctx) {
-            if (v.name == varName) return true;
-        }
+    static function has(haystack:Iterable<{ name: String }>, needle:String) {
+        for (straw in haystack)
+            if (straw.name == needle)
+                return true;
         return false;
     }
 
-    private static function isField(name:String) {
-        for (v in fieldNames) {
-            if (v == name) return true;
-        }
-        return false;
-    }
-
-    private static function makeTransformer(target:ExprDef, func:Function) {
+    static function makeTransformer(target:Expr, func:Function)
         return function(expr:Expr, ctx:Array<VarDecl>):Expr {
-            switch(expr.getIdent()) {
-                case Success(id):
-                    if (id == 'this') {
-                        return target.at();
-                    }
-                    if (!isLocalVar(ctx, id) && !isArgument(func, id) && isField(id)) {
-                        return target.at().field(id);
-                    }
-                    return expr;
-                case Failure(f):
-            }
-            return expr;
+            if(true) return expr;
+            return
+                switch(expr.getIdent()) {
+                    case Success(id):
+                        return
+                            if (id == 'this')
+                                target;
+                            else if (!has(ctx, id) && !has(func.args, id) && instanceFieldNames.has(id)) {
+                                target.field(id);
+                            }
+                            else {
+                                trace("------ ctx --------" + ctx);
+                                expr;
+                            }
+                    case Failure(f): expr;
+                }
         }
-    }
-
-    private static function newFunc(block:Array<Expr>, target:ExprDef, varName:String, func:Function){
-        // modify exprs related to `this` in the body of the function
-
-        func.expr = func.expr.map(makeTransformer(target, func), null);
-
-        block.push(
-        {
-        pos: Context.currentPos(),
-        expr: EBinop(OpAssign, {
-        pos: Context.currentPos(),
-        expr: EField({ pos: Context.currentPos(), expr: target }, varName)
-        }, {
-        pos: Context.currentPos(),
-        expr: EFunction(null, func)
-        })
-        }
-        );
-
-    }
 
     static function getTargetObjName(ctor:Function):String {
-        if (ctor.args.length > 0) {
-            return ctor.args[0].name;
-        } else {
-            throw new Error("Try to use the first argument, but no args found", Context.currentPos());
-        }
+        if (ctor.args.length == 0)
+            ctor.args.push('scope'.toArg(macro : Dynamic));
+        return
+            ctor.args[0].name;
     }
 
     static function getCtor(fields:Array<Field>) {
-        for (f in fields) {
-            if (f.name == "new") {
+        for (f in fields)
+            if (f.name == "new")
                 switch(f.kind) {
                     case FFun(func): return func;
-                    default: // do nothing
+                    default: throw 'assert';//shouldn't happen
                 }
-            }
-        }
-        return null;
-    }
-#end
 
+        return [].toBlock().func(['scope'.toArg(macro : Dynamic)], false);
+    }
+
+#end
 }
