@@ -19,7 +19,7 @@ class Scope1 implements Public, implements freewind.Qkdny {
     private static var sname = "static name";
 
     public function hello1() {
-         var ss =test();
+        var s =test();
     }
 
     public function hello2() {
