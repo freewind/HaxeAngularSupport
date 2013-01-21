@@ -29,7 +29,7 @@ class QkdnyBuilder {
         return allFields;
     }
 
-#if macro
+    #if macro
     private static var scopeType:ComplexType;
     private static var currentClsName:String;
     private static var allFields:Array<Field>;
@@ -108,7 +108,10 @@ class QkdnyBuilder {
                 switch(f.kind) {
                     case FVar(t, _): fields.push(f);
                     case FFun(func): if (f.name != 'new') {
-                        func.expr.pos.makeBlankType();
+                        if(func.ret == null) {
+                            func.ret = func.expr.pos.makeBlankType();
+                        }
+                        func.expr = null;
                         fields.push(f);
                     }
                     default:
@@ -163,15 +166,15 @@ class QkdnyBuilder {
         var ctx = [
         { name: instanceHolder.getIdent().sure(), type: scopeType, expr: null }
         ];
-        //        for (f in staticFields) {
-        //            switch(f.kind) {
-        //                case FFun(func):
-        //                    ctx.push({ name:f.name, type:null, expr:func.toExpr() });
-        //                case FVar(t, e):
-        //                    ctx.push({ name: f.name, type: t, expr: e });
-        //                default:
-        //            }
-        //        }
+        for (f in staticFields) {
+            switch(f.kind) {
+                case FFun(func):
+                    ctx.push({ name:f.name, type:null, expr:func.toExpr() });
+                case FVar(t, e):
+                    ctx.push({ name: f.name, type: t, expr: e });
+                default:
+            }
+        }
         return ctx;
     }
 
