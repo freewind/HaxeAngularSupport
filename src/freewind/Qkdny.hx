@@ -18,8 +18,11 @@ interface Qkdny {
 class QkdnyBuilder {
 
     @:macro public static function build():Array<haxe.macro.Field> {
+
         init();
 
+//        makeClsImplementDynamic();
+//        changeTypeOfNewFirstArgu();
         moveInstanceVars();
         handleCtorBody();
         moveInstanceFunctions();
@@ -31,10 +34,12 @@ class QkdnyBuilder {
 
     #if macro
 
- private static var allFields:Array<Field>;
+    private static var currentClsName: String;
+    private static var allFields:Array<Field>;
 
     private static var staticFields:Array<haxe.macro.Field>;
     private static var instanceNames:Array<String>;
+    private static var fieldTypeMap:Hash<ComplexType>;
 
     private static var ctor:Function;
 
@@ -46,10 +51,17 @@ class QkdnyBuilder {
     private static var toRemove:Array<Field>;
 
     private static function init() {
+
+        switch(Context.getLocalType()) {
+            case TInst(ins, _): currentClsName = ins.toString();
+            default:
+        }
+
         allFields = Context.getBuildFields();
 
         staticFields = [];
         instanceNames = [];
+        fieldTypeMap = new Hash();
         for (f in allFields) {
             if (f.access.has(AStatic)) {
                 staticFields.push(f);
@@ -61,6 +73,12 @@ class QkdnyBuilder {
                     if (!f.access.has(AStatic) && f.name == 'new') {
                         ctor = func;
                     }
+                    if(!f.access.has(AStatic)) {
+                        fieldTypeMap.set(f.name, func.ret);
+                    }
+                case FVar(t,_): if(!f.access.has(AStatic)) {
+                    fieldTypeMap.set(f.name, t);
+                }
                 default:
             }
         }
@@ -85,8 +103,8 @@ class QkdnyBuilder {
         // ignore private ones
         for (f in allFields) {
             switch(f.kind) {
-                case FVar(t, v): if (!f.access.has(AStatic) && !f.access.has(APrivate)) {
-                    block.push(newField(f.name, v == null ? (macro null) : v));
+                case FVar(t, e): if (!f.access.has(AStatic) && !f.access.has(APrivate)) {
+                    block.push(newField(f.name, e == null ? (macro null) : e));
                     toRemove.push(f);
                 }
                 default:
@@ -105,7 +123,6 @@ class QkdnyBuilder {
             switch(f.kind) {
                 case FFun(func): if (!f.access.has(AStatic)) {
                     if (f.name == 'new') continue;
-                    trace("### processing func: " + f.name);
                     func.expr = func.expr.map(makeTransformer(func.args), defaultScope());
                     block.push(
                         newField(f.name, EFunction(null, func).at())
@@ -125,7 +142,7 @@ class QkdnyBuilder {
 
     static function defaultScope() {
         var ctx = [
-            { name: instanceHolder.getIdent().sure(), type: macro : Dynamic, expr: null }
+            { name: instanceHolder.getIdent().sure(), type: currentClsName.asComplexType(), expr: null }
         ];
         for (f in staticFields) {
             switch(f.kind) {
@@ -158,8 +175,8 @@ class QkdnyBuilder {
                 case Success(id):
                     if (id == 'this') return instanceHolder;
                     if (!hasName(ctx, id) && !hasName(args, id)) {
-                        if (instanceNames.has(id)) {
-                            return instanceHolder.field(id);
+                        if (fieldTypeMap.exists(id)) {
+                            return ECheckType(instanceHolder.field(id), fieldTypeMap.get(id)).at(expr.pos);
                         }
                     }
                     return expr;

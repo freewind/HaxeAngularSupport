@@ -1,8 +1,8 @@
 package ;
 
 import freewind.Qkdny;
-import xxx.Scope1;
-import xxx.Scope2;
+//import xxx.Scope1;
+//import Scope2;
 import xxx.Ctrl;
 
 class Main {

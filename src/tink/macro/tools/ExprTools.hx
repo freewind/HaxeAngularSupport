@@ -334,19 +334,12 @@ class ExprTools {
 				func.expr = rec(func.expr, innerCtx);
 				EFunction(name, func);
 			case EVars(vars):trace("--- EVars ---");
-//                function opt(e:Null<Expr>, x: Expr->Array<VarDecl>->Expr):Expr {
-//                    return e == null ? null : x(e, null);
-//                }
-//                var ret = [];
-//                for (v in vars)
-//                    ret.push( { name: v.name, type:v.type, expr: opt(v.expr, f) } );
-//                EVars(ret);
 				var ret = [];
 				for (v in vars)
 				{
 					var vExpr = v.expr == null ? null : map(v.expr, f, ctx);
-					if (v.type == null && vExpr != null)
-						v.type = vExpr.typeof(ctx).sure().toComplex();
+//					if (v.type == null && vExpr != null)
+//						v.type = vExpr.typeof(ctx).sure().toComplex();
 					ctx.push({ name:v.name, expr:null, type:v.type });
 					ret.push({ name:v.name, expr:vExpr == null ? null : vExpr, type:v.type });
 				}
@@ -459,7 +452,6 @@ class ExprTools {
 					locals = context;
 				if (locals != null){
 					expr = [EVars(locals).at(expr.pos), expr].toMBlock(expr.pos);
-                    trace(expr);
                 }
 				Success(Context.typeof(expr));
 			}
