@@ -18,11 +18,8 @@ interface Qkdny {
 class QkdnyBuilder {
 
     @:macro public static function build():Array<haxe.macro.Field> {
-
         init();
 
-//        makeClsImplementDynamic();
-//        changeTypeOfNewFirstArgu();
         moveInstanceVars();
         handleCtorBody();
         moveInstanceFunctions();
@@ -32,9 +29,9 @@ class QkdnyBuilder {
         return allFields;
     }
 
-    #if macro
-
-    private static var currentClsName: String;
+#if macro
+    private static var scopeType:ComplexType;
+    private static var currentClsName:String;
     private static var allFields:Array<Field>;
 
     private static var staticFields:Array<haxe.macro.Field>;
@@ -58,6 +55,7 @@ class QkdnyBuilder {
         }
 
         allFields = Context.getBuildFields();
+        scopeType = createAnonymousForScope();
 
         staticFields = [];
         instanceNames = [];
@@ -73,10 +71,10 @@ class QkdnyBuilder {
                     if (!f.access.has(AStatic) && f.name == 'new') {
                         ctor = func;
                     }
-                    if(!f.access.has(AStatic)) {
+                    if (!f.access.has(AStatic)) {
                         fieldTypeMap.set(f.name, func.ret);
                     }
-                case FVar(t,_): if(!f.access.has(AStatic)) {
+                case FVar(t, _): if (!f.access.has(AStatic)) {
                     fieldTypeMap.set(f.name, t);
                 }
                 default:
@@ -85,6 +83,10 @@ class QkdnyBuilder {
 
         if (ctor == null) throw new Error("No 'function new()' found", Context.currentPos());
         if (ctor.args.length == 0) throw new Error("Try to use the first argument from ctor, but no args found", Context.currentPos());
+
+        // change type of the first argument
+//        var first = ctor.args[0];
+//        first.type = scopeType;
 
         instanceHolder = ctor.args[0].name.resolve();
 
@@ -98,6 +100,23 @@ class QkdnyBuilder {
         toRemove = [];
     }
 
+
+    private static function createAnonymousForScope() {
+        var fields = [];
+        for (f in Reflect.copy(Context.getBuildFields())) {
+            if (!f.access.has(AStatic)) {
+                switch(f.kind) {
+                    case FVar(t, _): fields.push(f);
+                    case FFun(func): if (f.name != 'new') {
+                        func.expr.pos.makeBlankType();
+                        fields.push(f);
+                    }
+                    default:
+                }
+            }
+        }
+        return TAnonymous(fields);
+    }
 
     private static function moveInstanceVars() {
         // ignore private ones
@@ -113,7 +132,7 @@ class QkdnyBuilder {
     }
 
     private static function handleCtorBody() {
-        for(x in ctorOriBlock.mapArray(makeTransformer(ctor.args), defaultScope())) {
+        for (x in ctorOriBlock.mapArray(makeTransformer(ctor.args), defaultScope())) {
             block.push(x);
         }
     }
@@ -142,17 +161,17 @@ class QkdnyBuilder {
 
     static function defaultScope() {
         var ctx = [
-            { name: instanceHolder.getIdent().sure(), type: currentClsName.asComplexType(), expr: null }
+        { name: instanceHolder.getIdent().sure(), type: scopeType, expr: null }
         ];
-        for (f in staticFields) {
-            switch(f.kind) {
-                case FFun(func):
-                    ctx.push({ name:f.name, type:null, expr:func.toExpr() });
-                case FVar(t, e):
-                    ctx.push({ name: f.name, type: t, expr: e });
-                default:
-            }
-        }
+        //        for (f in staticFields) {
+        //            switch(f.kind) {
+        //                case FFun(func):
+        //                    ctx.push({ name:f.name, type:null, expr:func.toExpr() });
+        //                case FVar(t, e):
+        //                    ctx.push({ name: f.name, type: t, expr: e });
+        //                default:
+        //            }
+        //        }
         return ctx;
     }
 
@@ -175,8 +194,8 @@ class QkdnyBuilder {
                 case Success(id):
                     if (id == 'this') return instanceHolder;
                     if (!hasName(ctx, id) && !hasName(args, id)) {
-                        if (fieldTypeMap.exists(id)) {
-                            return ECheckType(instanceHolder.field(id), fieldTypeMap.get(id)).at(expr.pos);
+                        if (instanceNames.has(id)) {
+                            return instanceHolder.field(id);
                         }
                     }
                     return expr;
@@ -192,6 +211,5 @@ class QkdnyBuilder {
                 return true;
         return false;
     }
-
 #end
 }
