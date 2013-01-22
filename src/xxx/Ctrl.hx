@@ -1,17 +1,14 @@
 package xxx;
 
-import freewind.Qkdny;
+import freewind.AngularSupport;
 import common.Tree.TreeNode;
 import haxe.Public;
 using Lambda;
 
 @:keep
-class Ctrl implements Public, implements Qkdny {
+class Ctrl implements Public, implements AngularSupport {
 
-    public static function __init__() {
-        js.Lib.eval(Type.getClassName(Ctrl) + ".$inject = ['$scope','JsRoutes', 'ExData']");
-    }
-
+    @AngularSupport({inject:['$scope', 'JsRoutes', 'ExData'], scope:"$scope"})
     public function new(scope:Dynamic, jsRoutes:Dynamic, exData:ExData) {
         this.jsRoutes = jsRoutes;
         this.categoryTree = exData.categoryTree;

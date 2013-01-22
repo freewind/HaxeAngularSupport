@@ -1,10 +1,12 @@
 package xxx;
 
+import freewind.AngularSupport;
 import haxe.Public;
 
 @:keep
-class Scope1 implements Public, implements freewind.Qkdny {
+class Scope1 implements Public, implements AngularSupport {
 
+    @AngularSupport({inject:['$scope'], scope:"$scope"})
     public function new(scope:Dynamic) {
     }
 
@@ -19,7 +21,7 @@ class Scope1 implements Public, implements freewind.Qkdny {
     private static var sname = "static name";
 
     public function hello1() {
-        var s =test();
+        var s = test();
     }
 
     public function hello2() {
