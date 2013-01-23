@@ -1,3 +1,11 @@
+After using this macro for 2 days, I don't recommend it anymore. 
+When I write code in that way, I can't stop thinking "what the js code it will generate? Is it correct"? 
+It's too tired. And also found small errors it introduced, which may be fixed, but we need more rules for coding.
+
+So I recommend the classic way of writing angularjs code, as shown on [here](https://github.com/cambiata/Haxe-AngularJS-test/blob/master/src/site/MainController.hx).
+
+-----------
+
 This is a haxe macro which can let us writing augularjs controllers in class structure(fields and methds).
 
 Actually, there is no extra macro needed to develop angularjs applications with haxe, you can see a demo from cambiata:
