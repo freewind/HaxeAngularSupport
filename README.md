@@ -86,7 +86,7 @@ then I can just use it(from parent), without assign it to current scope with a n
 Requirements
 ------------
 
-1. Use nightly-build haxe, since it requires latest macro api. For me, I use the build r5894, you can download it here if you are using windows: http://94.142.242.48/builds/windows/?C=M;O=D
+1. Use nightly-build haxe, since it requires latest macro api. For me, I use the build r5894, you can find download links here:http://haxe.org/download/manual_install#svn-builds
 2. It requires lib "tink_macros", but the version "1.2.1" from haxelib is not new enough. You can use the code I included in this project (src/tink), or clone from https://github.com/back2dos/tinkerbell
 
 Welcome trying and improving it :)
